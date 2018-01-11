@@ -125,9 +125,9 @@ def _markerColorCheck(mc, X, Y, L):
     assert isndarray(mc), 'mc should be a numpy ndarray'
     assert mc.shape[0] == L or (mc.shape[0] == X.shape[0] and
             (mc.ndim == 1 or mc.ndim == 2 and mc.shape[1] == 3)), \
-            'marker colors have to be of size `%d` or `%d x 3` ' + \
-            ' or `%d` or `%d x 3`, but got: %s' % \
-            (X.shape[0], X.shape[1], L, L, 'x'.join(mc.shape))
+            ('marker colors have to be of size `%d` or `%d x 3` ' + \
+            ' or `%d` or `%d x 3`, but got: %s') % \
+            (X.shape[0], X.shape[1], L, L, 'x'.join(map(str,mc.shape)))
 
     assert (mc >= 0).all(), 'marker colors have to be >= 0'
     assert (mc <= 255).all(), 'marker colors have to be <= 255'
@@ -236,7 +236,7 @@ class Visdom(object):
         self.send = send
 
         try:
-            import torch
+            import torch  # noqa F401: we do use torch, just weirdly
             wrap_tensor_methods(self, pytorch_wrap)
         except ImportError:
             pass
@@ -291,6 +291,13 @@ class Visdom(object):
         return self._send(
             msg={'win': win, 'eid': env},
             endpoint='close'
+        )
+
+    def delete_env(self, env):
+        """This function deletes a specific environment."""
+        return self._send(
+            msg={'eid': env},
+            endpoint='delete_env'
         )
 
     def _win_exists_wrap(self, win, env=None):
@@ -374,7 +381,6 @@ class Visdom(object):
         uint8 in [0, 255].
         """
         opts = {} if opts is None else opts
-        opts['jpgquality'] = opts.get('jpgquality', 75)
         _assert_opts(opts)
         opts['width'] = opts.get('width', img.shape[img.ndim - 1])
         opts['height'] = opts.get('height', img.shape[img.ndim - 2])
@@ -392,12 +398,12 @@ class Visdom(object):
         img = np.transpose(img, (1, 2, 0))
         im = Image.fromarray(img)
         buf = BytesIO()
-        im.save(buf, format='JPEG', quality=opts['jpgquality'])
+        im.save(buf, format='PNG')
         b64encoded = b64.b64encode(buf.getvalue()).decode('utf-8')
 
         data = [{
             'content': {
-                'src': 'data:image/jpg;base64,' + b64encoded,
+                'src': 'data:image/png;base64,' + b64encoded,
                 'caption': opts.get('caption'),
             },
             'type': 'image',
